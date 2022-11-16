@@ -15,14 +15,14 @@ from timm.models.vision_transformer import VisionTransformer
 class VitBert(nn.Module):
     def __init__(
         self,
-        img_size: tuple,
-        patch_size: int,
         bert_config_file: Path,
+        num_classes: int,
+        img_size: tuple,
+        patch_size: int = 16,
         in_chans: int = 3,
-        num_classes: int = 1000,
-        embed_dim: int = 768,
-        depth: int = 12,
-        num_heads: int = 12,
+        vit_embed_dim: int = 768,
+        vit_depth: int = 12,
+        vit_num_heads: int = 12,
         vit_ckpt: Path | None = None,
     ):
         super().__init__()
@@ -34,9 +34,9 @@ class VitBert(nn.Module):
             patch_size=patch_size,
             in_chans=in_chans,
             num_classes=num_classes,
-            embed_dim=embed_dim,
-            depth=depth,
-            num_heads=num_heads,
+            embed_dim=vit_embed_dim,
+            depth=vit_depth,
+            num_heads=vit_num_heads,
         )
         if vit_ckpt is not None:
             self.vit.load_state_dict(torch.load(vit_ckpt))

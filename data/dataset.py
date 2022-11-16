@@ -1,8 +1,8 @@
-import json
 from typing import List, Dict
 from pathlib import Path
 
-from torch import nn
+import numpy as np
+from torchvision import transforms
 from torch.utils.data import Dataset
 
 from .utils import load_json, parse_label
@@ -12,7 +12,7 @@ def chunk_list(lst: List, chunk_size: int) -> List[List]:
     """
     Split a list into chunks of size `chunk_size`.
     """
-    return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
+    return [lst[i: i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
 def chunk_2d_list(lst: List[List], chunk_size: int) -> List[List]:
@@ -44,32 +44,70 @@ class ChujianSeqDataset(Dataset):
         data_path: Path,
         vocab_path: Path,
         context_len: int = 8,
-        do_mask: bool = False,
+        is_training: bool = False,
         mask_prob: float = 0.20,  # Mask 20% of the tokens
+        img_size: int = 224,
     ):
         self.data_path = data_path
         self.vocab_path = vocab_path
         self.context_len = context_len
-        self.do_mask = do_mask
+        self.is_training = is_training
+        self.mask_prob = mask_prob
+        self.img_size = img_size
 
         self.vocab: List[str] = load_json(self.vocab_path)
         self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
+        self.unk_token_id = self.token_to_id["[UNK]"]
+        self.mask_token_id = self.token_to_id["[MASK]"]
+        self.pad_token_id = self.token_to_id["[PAD]"]
+        self.cls_token_id = self.token_to_id["[CLS]"]
+        self.sep_token_id = self.token_to_id["[SEP]"]
         self.examples = self.get_examples(data_path)
 
-    def get_examples(self, data_path: Path):
+    def get_transform(self):
+        if self.is_training:
+            return transforms.Compose(
+                [
+                    transforms.Resize((256, 256)),
+                    transforms.RandomCrop(self.img_size),
+                    transforms.ToTensor(),
+                    # Data augmentation
+                    transforms.GaussianBlur(kernel_size=3),
+                    transforms.RandomAdjustSharpness(sharpness_factor=4),
+                    # transforms.RandomInvert(),
+                    # transforms.RandomAutocontrast(),
+                    transforms.RandomGrayscale(),
+                    transforms.Normalize(
+                        (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+                    ),
+                ]
+            )
+        else:
+            return transforms.Compose(
+                [
+                    transforms.Resize(self.img_size),
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+                    ),
+                ]
+            )
+
+    def get_examples(self, data_path: Path) -> List[Dict]:
         """
         Format of the source file.
         [
             {
-                'seq_id': "train-13",
-                'seq': [
+                "seq_id": "train-13",
+                "seq": [
                     {
-                        "idx": 8,
+                        "idx": 0,
                         "glyph": "{弔口}",
                         "image": "path/to/file.png",
                     },
                     ...
                 ],
+                "masks": [3, 4]
             },
             ...
         ]
@@ -79,6 +117,9 @@ class ChujianSeqDataset(Dataset):
         for seq in all_seqs:
             seq_id = seq["id"]
             seq = seq["sequence"]
+            masks = None
+            if "mask" in seq:
+                masks = seq["masks"]
 
             # Merge glyph labels
             for glyph in seq:
@@ -86,21 +127,60 @@ class ChujianSeqDataset(Dataset):
                     glyph["glyph"], use_comb_token=False
                 )
 
-            chunks = chunk_2d_list([seq], self.context_len)
+            chunks = chunk_list(seq, self.context_len)
             for chunk in chunks:
                 examples.append(
                     {
                         "seq_id": seq_id,
                         "seq": chunk,
+                        "masks": masks,
                     }
                 )
         return examples
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.examples)
+
+    def tokenize(self, text: str) -> int:
+        return self.token_to_id.get(text, self.unk_token_id)
+
+    def add_special_tokens(self, input_ids: list, labels: list):
+        input_ids = [self.cls_token_id] + input_ids + [self.sep_token_id]
+        labels = [-100] + labels + [-100]
+        return input_ids, labels
 
     def __getitem__(self, idx: int) -> Dict:
-        if self.do_mask:
-            # Mask 15% 
+        chunk = self.examples[idx]
+        seq = chunk["seq"]
+        # seq_id = chunk["seq_id"]
+
+        # Get mask indices
+        if self.is_training:
+            seq_len = len(seq)
+            mask_cnt = max(1, int(seq_len * self.mask_prob))
+            mask_indices = set(
+                np.random.choice(seq_len, mask_cnt, replace=False)
+            )
         else:
-            return self.data[idx]
+            mask_indices = set(chunk["masks"])
+
+        # Tokenize and mask
+        input_ids = [self.tokenize(glyph["glyph"]) for glyph in seq]
+        labels = [-100] * len(input_ids)
+        for i, glyph in enumerate(seq):
+            if i in mask_indices:
+                labels[i] = input_ids[i]
+                input_ids[i] = self.mask_token_id
+        input_ids, labels = self.add_special_tokens(input_ids, labels)
+        attention_mask = [1] * len(input_ids)
+
+        # Pad
+        pad_len = self.context_len + 2 - len(input_ids)
+        input_ids += [self.pad_token_id] * pad_len
+        attention_mask += [0] * pad_len
+        labels += [-100] * pad_len
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+        }

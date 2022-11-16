@@ -17,11 +17,12 @@ def load_json(path):
     return json.load(open(path, "r", encoding="utf8"))
 
 
-def load_examples(path) -> list:
+def load_examples(path, min_len: int = 2) -> list:
     all_data = load_json(path)
     examples = []
     for i, seq_data in enumerate(all_data):
-        examples.append(seq_data["sequence"])
+        if len(seq_data["sequence"]) >= min_len:
+            examples.append(seq_data["sequence"])
     return examples
 
 
@@ -52,15 +53,14 @@ def split_data(examples: list[list]):
 
 
 def mask_examples(
-    examples: list, mask_prob: float, mask_token: str = "[MASK]"
+    examples: list, mask_prob: float
 ):
     """Mask some glyphs in each test example. Inplace."""
     for ex in examples:
         seq = ex["sequence"]
         mask_cnt = max(1, int(len(seq) * mask_prob))
-        mask_idx = random.sample(range(len(seq)), mask_cnt)
-        for i in mask_idx:
-            seq[i] = mask_token
+        mask_idxs = random.sample(range(len(seq)), mask_cnt)
+        ex["masks"] = mask_idxs
 
 
 def main():
@@ -70,6 +70,7 @@ def main():
     MASK_PROB = 0.15
 
     examples = load_examples(SEQS_PATH)
+
     train, dev, test = split_data(examples)
     mask_examples(test, MASK_PROB)
     mask_examples(dev, MASK_PROB)
