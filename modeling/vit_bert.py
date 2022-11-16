@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Union
 
 from transformers import BertConfig
 from transformers.utils import ModelOutput
@@ -23,7 +24,7 @@ class VitBert(nn.Module):
         vit_embed_dim: int = 768,
         vit_depth: int = 12,
         vit_num_heads: int = 12,
-        vit_ckpt: Path = None,
+        vit_ckpt: Union[Path, None] = None,
     ):
         super().__init__()
         self.img_size = img_size
@@ -54,14 +55,15 @@ class VitBert(nn.Module):
         # self.bert_mlm = BertForMaskedLM(self.bert_config)
 
         # Custom embeddings
+        self.vocab_size = num_classes + 5  # 5 special tokens
         self.bert_embeddings = BertEmbeddings(self.bert_config)
         self.bert_encoder = BertEncoder(self.bert_config)
         self.bert_mlm_head = nn.Linear(
-            self.bert_config.hidden_size, num_classes
+            self.bert_config.hidden_size, self.vocab_size
         )
 
         self.embed_weight = nn.Parameter(torch.tensor(0.5))
-        self.logits_weight = nn.Parameter(torch.tensor(0.5))
+        self.logits_weight = nn.Parameter(torch.tensor(1.0))
 
     def forward(
         self,
@@ -85,6 +87,7 @@ class VitBert(nn.Module):
             self.logits_weight * logits_vit
             + (1 - self.logits_weight) * logits_text[:, 1:-1]
         )
+        logits = F.pad(logits, (0, 0, 1, 1), value=0)  # (b, n, v)
 
         # Compute loss
         # NOTE: Only the masked tokens are used for computing these loss.
@@ -113,7 +116,9 @@ class VitBert(nn.Module):
         cls_embed: Tensor = self.vit.forward_head(
             hidden_states, pre_logits=True
         )
-        logits: Tensor = self.vit.head(cls_embed)  # (b*n, v)
+        logits: Tensor = self.vit.head(cls_embed)  # (b*n, v-5)
+        # Pad 5 zeros for special tokens.
+        logits = F.pad(logits, (5, 0), value=0)  # (b*n, v)
         return (
             logits.view(batch_size, seq_len, -1),
             cls_embed.view(batch_size, seq_len, -1),
@@ -152,7 +157,7 @@ class VitBert(nn.Module):
         labels: Tensor,
     ):
         '''
-        logits: (b, n - 2, v)
+        logits: (b, n, v)
         logits_vit: (b, n - 2, v)
         logits_text: (b, n, v)
         labels: (b, n)
@@ -161,6 +166,7 @@ class VitBert(nn.Module):
         #  Remove the [CLS] and [SEP] tokens.
         labels = labels[:, 1:-1]
         logits_text = logits_text[:, 1:-1]
+        logits = logits[:, 1:-1]
         # Now they are all (b, n - 2, v)
         mask_indices = labels != -100
         logits = logits[mask_indices]

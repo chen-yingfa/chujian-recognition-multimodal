@@ -8,7 +8,7 @@ from modeling.vit_bert import VitBert
 
 def parse_args() -> Namespace:
     p = ArgumentParser()
-    p.add_argument("--mode", type=str, default="train_test")
+    p.add_argument("--mode", type=str, default="_test")
     p.add_argument("--vocab_path", type=Path, default="../vocab_k3.json")
     p.add_argument(
         "--train_path", type=Path, default="../data/sequences/train.json"
@@ -63,6 +63,7 @@ def main():
         output_dir,
         lr=args.lr,
         batch_size=args.batch_size,
+        log_interval=1,
     )
 
     if "train" in args.mode:
@@ -80,13 +81,14 @@ def main():
         )
         trainer.train(train_data, dev_data)
     if "test" in args.mode:
+        test_output_dir = output_dir / 'test'
         test_data = ChujianSeqDataset(
             data_path=args.test_path,
             vocab_path=args.vocab_path,
             context_len=args.context_len,
             is_training=False,
         )
-        trainer.evaluate(test_data)
+        trainer.evaluate(test_data, test_output_dir)
 
 
 if __name__ == "__main__":

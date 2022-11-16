@@ -9,12 +9,13 @@ from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 
 from data.utils import dump_json
+from modeling.vit_bert import VitBert
 
 
 class Trainer:
     def __init__(
         self,
-        model: nn.Module,
+        model: VitBert,
         output_dir: Path,
         num_epochs: int = 2,
         batch_size: int = 4,
@@ -31,7 +32,10 @@ class Trainer:
         self.log_interval = log_interval
         self.device = device
 
-        self.optimizer: Adam = Adam(self.model.parameters(), lr=self.lr)
+        train_params = [
+            p for n, p in self.model.named_parameters() if n.startswith("bert")
+        ]
+        self.optimizer: Adam = Adam(train_params, lr=self.lr)
         self.scheduler: lr_scheduler.StepLR = lr_scheduler.StepLR(
             self.optimizer,
             step_size=1,
