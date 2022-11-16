@@ -21,8 +21,9 @@ def load_examples(path, min_len: int = 2) -> list:
     all_data = load_json(path)
     examples = []
     for i, seq_data in enumerate(all_data):
-        if len(seq_data["sequence"]) >= min_len:
-            examples.append(seq_data["sequence"])
+        seq = seq_data["sequence"]
+        if len(seq) >= min_len:
+            examples.append(seq)
     return examples
 
 
@@ -60,7 +61,8 @@ def mask_examples(
         seq = ex["sequence"]
         mask_cnt = max(1, int(len(seq) * mask_prob))
         mask_idxs = random.sample(range(len(seq)), mask_cnt)
-        ex["masks"] = mask_idxs
+        assert mask_idxs is not None
+        ex["masks"] = list(mask_idxs)
 
 
 def main():

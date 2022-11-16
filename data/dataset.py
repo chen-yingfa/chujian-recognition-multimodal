@@ -58,7 +58,9 @@ class ChujianSeqDataset(Dataset):
         self.img_size = img_size
 
         self.vocab: List[str] = load_json(self.vocab_path)
-        self.vocab = self.vocab
+        # NOTE: Text specific tokens must be appended, else the token IDs
+        # will be different from the pretrained ViT model.
+        self.vocab += ["[MASK]", "[CLS]", "[SEP]", "[UNK]", "[PAD]"]
         self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
         self.unk_token_id = self.token_to_id["[UNK]"]
         self.mask_token_id = self.token_to_id["[MASK]"]
@@ -73,7 +75,7 @@ class ChujianSeqDataset(Dataset):
             return transforms.Compose(
                 [
                     transforms.Resize((256, 256)),
-                    transforms.RandomCrop(self.img_size),
+                    transforms.RandomCrop((self.img_size, self.img_size)),
                     transforms.ToTensor(),
                     # Data augmentation
                     transforms.GaussianBlur(kernel_size=3),
@@ -89,7 +91,7 @@ class ChujianSeqDataset(Dataset):
         else:
             return transforms.Compose(
                 [
-                    transforms.Resize(self.img_size),
+                    transforms.Resize((self.img_size, self.img_size)),
                     transforms.ToTensor(),
                     transforms.Normalize(
                         (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
@@ -118,12 +120,12 @@ class ChujianSeqDataset(Dataset):
         """
         all_seqs = load_json(data_path)
         examples = []
-        for seq in all_seqs:
-            seq_id = seq["id"]
-            seq = seq["sequence"]
+        for seq_data in all_seqs:
+            seq_id = seq_data["id"]
+            seq = seq_data["sequence"]
             masks = None
-            if "mask" in seq:
-                masks = seq["masks"]
+            if "masks" in seq_data:
+                masks = seq_data["masks"]
 
             # Merge glyph labels
             for glyph in seq:
