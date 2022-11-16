@@ -8,7 +8,7 @@ from modeling.vit_bert import VitBert
 
 def parse_args() -> Namespace:
     p = ArgumentParser()
-    p.add_argument("--mode", type=str, default="_test")
+    p.add_argument("--mode", type=str, default="train_test")
     p.add_argument("--vocab_path", type=Path, default="./data/vocab_k3.json")
     p.add_argument(
         "--train_path", type=Path, default="../data/sequences/train.json"
@@ -63,7 +63,7 @@ def main():
         output_dir,
         lr=args.lr,
         batch_size=args.batch_size,
-        log_interval=1,
+        log_interval=5,
     )
 
     if "train" in args.mode:

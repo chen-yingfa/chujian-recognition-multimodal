@@ -53,7 +53,6 @@ class VitBert(nn.Module):
             self.vit.load_state_dict(renamed)
 
         self.bert_config = BertConfig.from_json_file(bert_config_file)
-        # self.bert_mlm = BertForMaskedLM(self.bert_config)
 
         # Custom embeddings
         self.vocab_size = num_classes + 5  # 5 special tokens
@@ -64,7 +63,7 @@ class VitBert(nn.Module):
         )
 
         self.embed_weight = nn.Parameter(torch.tensor(0.5))
-        self.logits_weight = nn.Parameter(torch.tensor(1.0))
+        self.logits_weight = nn.Parameter(torch.tensor(0.5))
 
     def forward(
         self,
@@ -118,7 +117,7 @@ class VitBert(nn.Module):
             hidden_states, pre_logits=True
         )
         logits: Tensor = self.vit.head(cls_embed)  # (b*n, v-5)
-        # Pad 5 zeros for special tokens.
+        # Pad 5 zeros for special tokens (they are the last five tokens)
         logits = F.pad(logits, (0, 5), value=0)  # (b*n, v)
         return (
             logits.view(batch_size, seq_len, -1),
