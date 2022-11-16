@@ -57,9 +57,11 @@ class ChujianSeqDataset(Dataset):
         self.mask_prob = mask_prob
         self.img_size = img_size
 
+        print(f'Loading vocab from {vocab_path}')
         self.vocab: List[str] = load_json(self.vocab_path)
-        # NOTE: Text specific tokens must be appended, else the token IDs
-        # will be different from the pretrained ViT model.
+        # NOTE: Text specific tokens must be appended at the end,
+        # else the token IDs will be different from the pretrained
+        # ViT model.
         self.vocab += ["[MASK]", "[CLS]", "[SEP]", "[UNK]", "[PAD]"]
         self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
         self.unk_token_id = self.token_to_id["[UNK]"]

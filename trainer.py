@@ -289,13 +289,18 @@ class Trainer:
                 topk_preds = topk_idxs[labels != -100]
                 all_preds += topk_preds.tolist()  # (L, k)
                 total_loss += loss.item()
+                # print('labels:')
+                # print(labels)
+                # print('topk_preds:')
+                # print(topk_preds[:, 0])
+                # exit()
 
                 # Logging
                 if (step + 1) % self.eval_log_interval == 0:
                     self.log(
                         {
                             "step": step,
-                            "loss": total_loss / (step + 1),
+                            "loss": round(total_loss / (step + 1), 4),
                         }
                     )
         print("====== Evaluation Done ======")

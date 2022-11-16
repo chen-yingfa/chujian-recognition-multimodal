@@ -43,6 +43,7 @@ class VitBert(nn.Module):
             num_heads=vit_num_heads,
         )
         if vit_ckpt is not None:
+            print(f'Loading vit checkpoint from {vit_ckpt}')
             state_dict = torch.load(vit_ckpt)
             renamed = {}
             for k, v in state_dict.items():
@@ -95,7 +96,7 @@ class VitBert(nn.Module):
             logits, logits_vit, logits_text, labels
         )
         return ModelOutput(
-            loss=loss,
+            loss=loss_vit,
             loss_multimodal=loss_multimodal,
             loss_vit=loss_vit,
             loss_text=loss_text,
@@ -118,7 +119,7 @@ class VitBert(nn.Module):
         )
         logits: Tensor = self.vit.head(cls_embed)  # (b*n, v-5)
         # Pad 5 zeros for special tokens.
-        logits = F.pad(logits, (5, 0), value=0)  # (b*n, v)
+        logits = F.pad(logits, (0, 5), value=0)  # (b*n, v)
         return (
             logits.view(batch_size, seq_len, -1),
             cls_embed.view(batch_size, seq_len, -1),
@@ -162,6 +163,7 @@ class VitBert(nn.Module):
         logits_text: (b, n, v)
         labels: (b, n)
         '''
+        assert logits.shape == logits_text.shape
         # NOTE: Only the masked tokens are used for computing these loss.
         #  Remove the [CLS] and [SEP] tokens.
         labels = labels[:, 1:-1]

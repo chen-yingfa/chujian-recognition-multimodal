@@ -9,7 +9,7 @@ from modeling.vit_bert import VitBert
 def parse_args() -> Namespace:
     p = ArgumentParser()
     p.add_argument("--mode", type=str, default="_test")
-    p.add_argument("--vocab_path", type=Path, default="../vocab_k3.json")
+    p.add_argument("--vocab_path", type=Path, default="./data/vocab_k3.json")
     p.add_argument(
         "--train_path", type=Path, default="../data/sequences/train.json"
     )
@@ -20,7 +20,7 @@ def parse_args() -> Namespace:
         "--test_path", type=Path, default="../data/sequences/test.json"
     )
 
-    p.add_argument("--batch_size", type=int, default=4)
+    p.add_argument("--batch_size", type=int, default=8)
     p.add_argument("--lr", type=float, default=5e-5)
 
     # BERT parameters
