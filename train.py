@@ -10,6 +10,7 @@ def parse_args() -> Namespace:
     p = ArgumentParser()
     p.add_argument("--mode", type=str, default="train_test")
     p.add_argument("--vocab_path", type=Path, default="./data/vocab_k3.json")
+    p.add_argument("--output_dir", type=Path, default="./result/vit_bert_k3")
     p.add_argument(
         "--train_path", type=Path, default="../data/sequences/train.json"
     )
@@ -21,7 +22,8 @@ def parse_args() -> Namespace:
     )
 
     p.add_argument("--batch_size", type=int, default=8)
-    p.add_argument("--lr", type=float, default=5e-5)
+    p.add_argument("--num_epochs", type=int, default=4)
+    p.add_argument("--lr", type=float, default=5e-4)
 
     # BERT parameters
     p.add_argument(
@@ -53,8 +55,7 @@ def main():
     )
 
     output_dir = Path(
-        "result",
-        "temp_vit_bert",
+        args.output_dir,
         f"lr{args.lr}",
     )
 
@@ -63,6 +64,7 @@ def main():
         output_dir,
         lr=args.lr,
         batch_size=args.batch_size,
+        num_epochs=args.num_epochs,
         log_interval=5,
     )
 
