@@ -117,6 +117,8 @@ class Trainer:
                     "step": self.cur_step,
                     "lr": round(self.scheduler.get_last_lr()[0], 6),
                     "loss": round(self.total_loss / self.cur_step, 4),
+                    "loss_vit": round(outputs.loss_vit.item(), 4),
+                    "loss_text": round(outputs.loss_text.item(), 4),
                     "time": round(time.time() - self.train_start_time),
                     "w_L": round(self.model.logits_weight.item(), 4),
                     "w_E": round(self.model.embed_weight.item(), 4),
@@ -294,11 +296,6 @@ class Trainer:
                 topk_preds = topk_idxs[labels != -100]
                 all_preds += topk_preds.tolist()  # (L, k)
                 total_loss += loss.item()
-                # print('labels:')
-                # print(labels)
-                # print('topk_preds:')
-                # print(topk_preds[:, 0])
-                # exit()
 
                 # Logging
                 if (step + 1) % self.eval_log_interval == 0:

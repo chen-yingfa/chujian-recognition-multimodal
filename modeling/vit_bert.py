@@ -178,5 +178,6 @@ class VitBert(nn.Module):
         loss_vit = F.cross_entropy(logits_vit, labels)
         loss_text = F.cross_entropy(logits_text, labels)
         loss_multimodal = F.cross_entropy(logits, labels)
-        loss = loss_multimodal + loss_vit + loss_text
+        # loss = loss_multimodal + loss_vit + loss_text
+        loss = loss_multimodal
         return loss, loss_multimodal, loss_vit, loss_text

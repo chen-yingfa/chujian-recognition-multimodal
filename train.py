@@ -23,7 +23,7 @@ def parse_args() -> Namespace:
 
     p.add_argument("--batch_size", type=int, default=8)
     p.add_argument("--num_epochs", type=int, default=4)
-    p.add_argument("--lr", type=float, default=5e-4)
+    p.add_argument("--lr", type=float, default=2e-3)
 
     # BERT parameters
     p.add_argument(
