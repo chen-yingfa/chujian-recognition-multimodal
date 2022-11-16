@@ -32,9 +32,17 @@ class Trainer:
         self.log_interval = log_interval
         self.device = device
 
+        def should_train(param_name: str) -> bool:
+            return any([
+                param_name.startswith("bert"),
+                'embed_weight' in param_name,
+                'logits_weight' in param_name,
+            ])
         train_params = [
-            p for n, p in self.model.named_parameters() if n.startswith("bert")
+            p for n, p in self.model.named_parameters() if should_train(n)
         ]
+        num_trainable_params = sum(p.numel() for p in train_params)
+        print(f"Number of trainable parameters: {num_trainable_params}")
         self.optimizer: Adam = Adam(train_params, lr=self.lr)
         self.scheduler: lr_scheduler.StepLR = lr_scheduler.StepLR(
             self.optimizer,
@@ -85,11 +93,6 @@ class Trainer:
             # Some examples have no masks by chance, skip them
             loss = 0.0
         else:
-            # for key in ['input_ids', 'attention_mask', 'labels']:
-            #     print(key)
-            #     print(inputs[key][:10])
-            # exit()
-
             # Forward pass
             outputs = self.model(**inputs)
             loss = outputs.loss
@@ -115,6 +118,10 @@ class Trainer:
                     "lr": round(self.scheduler.get_last_lr()[0], 6),
                     "loss": round(self.total_loss / self.cur_step, 4),
                     "time": round(time.time() - self.train_start_time),
+                    "w_L": round(self.model.logits_weight.item(), 4),
+                    "grad w_L": round(self.model.logits_weight.grad.item(), 4),
+                    "w_E": round(self.model.embed_weight.item(), 4),
+                    "grad w_E": round(self.model.embed_weight.grad.item(), 4),
                     "epoch_time": round(time.time() - self.epoch_start_time),
                 },
                 flush=True,

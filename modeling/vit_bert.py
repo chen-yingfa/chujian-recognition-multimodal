@@ -95,7 +95,7 @@ class VitBert(nn.Module):
             logits, logits_vit, logits_text, labels
         )
         return ModelOutput(
-            loss=loss_vit,
+            loss=loss,
             loss_multimodal=loss_multimodal,
             loss_vit=loss_vit,
             loss_text=loss_text,

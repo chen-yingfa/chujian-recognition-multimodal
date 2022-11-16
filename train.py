@@ -54,7 +54,7 @@ def main():
 
     output_dir = Path(
         "result",
-        "vit_bert",
+        "temp_vit_bert",
         f"lr{args.lr}",
     )
 
