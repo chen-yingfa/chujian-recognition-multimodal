@@ -8,7 +8,7 @@ from torch import nn
 from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 
-from .data.utils import dump_json
+from data.utils import dump_json
 
 
 class Trainer:

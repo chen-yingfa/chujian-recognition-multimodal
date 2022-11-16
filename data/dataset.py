@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 from torchvision import transforms
 from torch.utils.data import Dataset
+import torch
+from PIL import Image
 
 from .utils import load_json, parse_label
 
@@ -56,6 +58,7 @@ class ChujianSeqDataset(Dataset):
         self.img_size = img_size
 
         self.vocab: List[str] = load_json(self.vocab_path)
+        self.vocab = self.vocab
         self.token_to_id = {token: i for i, token in enumerate(self.vocab)}
         self.unk_token_id = self.token_to_id["[UNK]"]
         self.mask_token_id = self.token_to_id["[MASK]"]
@@ -63,6 +66,7 @@ class ChujianSeqDataset(Dataset):
         self.cls_token_id = self.token_to_id["[CLS]"]
         self.sep_token_id = self.token_to_id["[SEP]"]
         self.examples = self.get_examples(data_path)
+        self.transform = self.get_transform()
 
     def get_transform(self):
         if self.is_training:
@@ -152,6 +156,8 @@ class ChujianSeqDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict:
         chunk = self.examples[idx]
         seq = chunk["seq"]
+        glyphs = [glyph["glyph"] for glyph in seq]
+        image_paths = [glyph["image"] for glyph in seq]
         # seq_id = chunk["seq_id"]
 
         # Get mask indices
@@ -165,7 +171,7 @@ class ChujianSeqDataset(Dataset):
             mask_indices = set(chunk["masks"])
 
         # Tokenize and mask
-        input_ids = [self.tokenize(glyph["glyph"]) for glyph in seq]
+        input_ids = [self.tokenize(glyph) for glyph in glyphs]
         labels = [-100] * len(input_ids)
         for i, glyph in enumerate(seq):
             if i in mask_indices:
@@ -174,13 +180,23 @@ class ChujianSeqDataset(Dataset):
         input_ids, labels = self.add_special_tokens(input_ids, labels)
         attention_mask = [1] * len(input_ids)
 
+        # Load images
+        images = []
+        for img_path in image_paths:
+            img = Image.open(img_path)
+            img = self.transform(img)
+            images.append(img)
+
         # Pad
         pad_len = self.context_len + 2 - len(input_ids)
         input_ids += [self.pad_token_id] * pad_len
         attention_mask += [0] * pad_len
         labels += [-100] * pad_len
+        images += [torch.zeros(3, self.img_size, self.img_size)] * pad_len
+
         return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels,
+            "images": torch.stack(images),  # (n, 3, img_size, img_size)
+            "input_ids": torch.tensor(input_ids),  # (n + 2)
+            "attention_mask": torch.tensor(attention_mask),  # (n + 2)
+            "labels": torch.tensor(labels),  # (n + 2)
         }
